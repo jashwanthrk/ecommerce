@@ -7,9 +7,9 @@ import Navbar from '../../components/user/navbar/navbar';
 import { useLocation } from 'react-router-dom';
 
 const Checkout = () => {
-  const location = useLocation()
-  const total = parseFloat(location.state?.total || 0)
-  const discount = parseFloat(location.state?.discount || 0)
+  const location = useLocation();
+  const total = parseFloat(location.state?.total || 0);
+  const discount = parseFloat(location.state?.discount || 0);
   const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,10 +22,11 @@ const Checkout = () => {
     phone: ''
   });
   const [saveAddress, setSaveAddress] = useState(false);
+
   useEffect(() => {
     const savedAddress = localStorage.getItem('savedShippingAddress');
     const savedSaveAddressPreference = localStorage.getItem('saveAddressPreference');
-    
+
     if (savedAddress) {
       try {
         const parsedAddress = JSON.parse(savedAddress);
@@ -42,7 +43,7 @@ const Checkout = () => {
 
   useEffect(() => {
     fetchCartItems();
-  }, []);
+  }, [fetchCartItems]);
 
   const fetchCartItems = async () => {
     const userId = sessionStorage.getItem('userId');
@@ -52,7 +53,7 @@ const Checkout = () => {
     }
 
     try {
-      const cartResponse = await fetch(`https://ecommerse-assingment-backend.onrender.com/cart/${userId}`);
+      const cartResponse = await fetch('https://ecommerse-assingment-backend.onrender.com/cart/' + userId);
       const cartData = await cartResponse.json();
 
       if (!cartData.success) {
@@ -73,9 +74,9 @@ const Checkout = () => {
       }, {});
 
       const productPromises = Object.values(groupedItems).map(async (item) => {
-        const productResponse = await fetch(`https://ecommerse-assingment-backend.onrender.com/product/${item.productId}`);
+        const productResponse = await fetch('https://ecommerse-assingment-backend.onrender.com/product/' + item.productId);
         const productData = await productResponse.json();
-        
+
         if (productData.success) {
           return {
             ...productData.product,
@@ -100,7 +101,7 @@ const Checkout = () => {
       ...address,
       [name]: value
     };
-    
+
     setAddress(updatedAddress);
 
     if (saveAddress) {
@@ -112,14 +113,11 @@ const Checkout = () => {
     const isChecked = e.target.checked;
     setSaveAddress(isChecked);
 
-    // Save address preference
     localStorage.setItem('saveAddressPreference', JSON.stringify(isChecked));
 
     if (isChecked) {
-      // Save current address to localStorage
       localStorage.setItem('savedShippingAddress', JSON.stringify(address));
     } else {
-      // Remove saved address from localStorage
       localStorage.removeItem('savedShippingAddress');
     }
   };
@@ -139,25 +137,35 @@ const Checkout = () => {
     return (subtotal * (discount / 100)).toFixed(2);
   };
 
-  const handlePlaceOrder = async () => {
-    const userId = sessionStorage.getItem('userId');
+  const handlePayment = async () => {
+    if (!isAddressValid()) return;
 
-    if (saveAddress) {
-      try {
-        await fetch('https://ecommerse-assingment-backend.onrender.com/update-address', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            userId,
-            address: Object.values(address).join(', ')
-          })
-        });
-      } catch (err) {
-        console.error('Error saving address:', err);
+    const options = {
+      key: 'rzp_test_your_key_here', // Replace with your Razorpay key
+      amount: (total * 100).toFixed(0), // Amount in paisa
+      currency: 'INR',
+      name: 'Mera Bestie',
+      description: 'Payment for your order',
+      handler: async (response) => {
+        console.log('Payment successful:', response);
+        await handlePlaceOrder(response);
+      },
+      prefill: {
+        name: 'Your Name',
+        email: 'your-email@example.com',
+        contact: address.phone
+      },
+      theme: {
+        color: '#F472B6'
       }
-    }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  };
+
+  const handlePlaceOrder = async (paymentResponse) => {
+    const userId = sessionStorage.getItem('userId');
 
     const now = new Date();
     const date = now.toLocaleDateString('en-GB');
@@ -180,12 +188,13 @@ const Checkout = () => {
           time,
           address: Object.values(address).join(', '),
           price: total,
-          productsOrdered
+          productsOrdered,
+          paymentId: paymentResponse.razorpay_payment_id
         })
       });
 
       const data = await response.json();
-      
+
       if (data.message === 'Order placed successfully') {
         confetti({
           particleCount: 100,
@@ -211,22 +220,21 @@ const Checkout = () => {
     );
   }
 
-  return (      
+  return (
     <div className="bg-gray-50 min-h-screen">
       <Helmet>
         <title>Checkout | Mera Bestie</title>
       </Helmet>
-      <Navbar/>
-      
+      <Navbar />
+
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Address Section */}
           <div className="md:w-2/3 bg-white rounded-2xl shadow-lg p-8">
             <div className="flex items-center mb-6 space-x-4">
               <MapPin className="text-pink-600 w-8 h-8" />
               <h2 className="text-3xl font-bold text-gray-800">Shipping Details</h2>
             </div>
-            
+
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
@@ -250,7 +258,7 @@ const Checkout = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
@@ -273,7 +281,7 @@ const Checkout = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                 <input
@@ -284,7 +292,7 @@ const Checkout = () => {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:outline-none transition-all duration-300"
                 />
               </div>
-              
+
               <div className="md:col-span-2 flex items-center space-x-3">
                 <input
                   type="checkbox"
@@ -304,14 +312,14 @@ const Checkout = () => {
               <ShoppingCart className="text-pink-600 w-8 h-8" />
               <h2 className="text-3xl font-bold text-gray-800">Order Summary</h2>
             </div>
-            
+
             <div className="space-y-4 max-h-96 overflow-y-auto">
               {cartItems.map((item) => (
                 <div key={item._id} className="flex justify-between items-center border-b pb-4">
                   <div className="flex items-center space-x-4">
-                    <img 
-                      src={item.img} 
-                      alt={item.name} 
+                    <img
+                      src={item.img}
+                      alt={item.name}
                       className="w-20 h-20 object-cover rounded-lg shadow-sm"
                     />
                     <div>
@@ -325,14 +333,13 @@ const Checkout = () => {
                 </div>
               ))}
             </div>
-            
+
             <div className="mt-6 space-y-4">
               <div className="flex justify-between text-gray-700">
                 <span>Subtotal</span>
                 <span className="font-semibold">Rs. {calculateSubtotal().toFixed(2)}</span>
               </div>
-              
-              {/* Discount Section */}
+
               {discount > 0 && (
                 <div className="flex justify-between text-gray-700">
                   <div className="flex items-center space-x-2">
@@ -344,28 +351,28 @@ const Checkout = () => {
                   </span>
                 </div>
               )}
-              
+
               <div className="flex justify-between text-gray-700">
                 <span>Shipping</span>
                 <span className="font-semibold text-green-600">Free</span>
               </div>
-              
+
               <div className="flex justify-between text-xl font-bold border-t pt-4">
                 <span>Total</span>
                 <span className="text-pink-600">Rs. {total.toFixed(2)}</span>
               </div>
-              
+
               <button
-                onClick={handlePlaceOrder}
+                onClick={handlePayment}
                 disabled={!isAddressValid()}
                 className={`w-full flex items-center justify-center space-x-2 py-4 rounded-lg transition-all duration-300 ${
-                  isAddressValid() 
-                    ? 'bg-black text-white hover:bg-gray-800 hover:shadow-lg' 
+                  isAddressValid()
+                    ? 'bg-black text-white hover:bg-gray-800 hover:shadow-lg'
                     : 'bg-gray-300 cursor-not-allowed opacity-50'
                 }`}
               >
                 <CreditCard className="w-6 h-6" />
-                <span>Place Order</span>
+                <span>Pay Now</span>
               </button>
             </div>
           </div>
@@ -376,13 +383,13 @@ const Checkout = () => {
               <CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-6" />
               <h3 className="text-3xl font-bold text-gray-800 mb-4">Order Placed Successfully!</h3>
               <p className="text-gray-600 mb-6">Your order has been processed. Check your email for tracking details.</p>
-              <button 
+              <button
                 onClick={() => navigate('/cart')}
                 className="bg-pink-600 text-white px-6 py-3 rounded-lg hover:bg-pink-700 transition-colors"
               >
                 Back to Cart
               </button>
-              </div>
+            </div>
           </div>
         )}
       </div>

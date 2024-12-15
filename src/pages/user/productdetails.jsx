@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Link } from 'react-router-dom';
 import { 
   FaMinus, 
   FaPlus, 
@@ -23,7 +22,6 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [showAddAnimation, setShowAddAnimation] = useState(false);
   const [stockStatus, setStockStatus] = useState(null);
 
@@ -76,7 +74,8 @@ const ProductDetail = () => {
     const userId = sessionStorage.getItem('userId');
     
     if (!userId) {
-      setShowLoginDialog(true);
+      toast.error('Please log in to add items to the cart.');
+      navigate('/login');
       return;
     }
 
@@ -100,24 +99,15 @@ const ProductDetail = () => {
       
       const data = await response.json();
       
-      if (data.success && data.message === 'Product added to cart successfully') {
+      if (data.success) {
         setShowAddAnimation(true);
         setTimeout(() => {
           setShowAddAnimation(false);
-          toast(
-            <div className="flex items-center cursor-pointer" onClick={() => navigate('/cart')}>
-              Go to Cart →
-            </div>,
-            {
-              position: "top-right",
-              autoClose: 5000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            }
-          );
+          toast.success('Product added to cart successfully!');
+          navigate('/cart');
         }, 1500);
+      } else {
+        toast.error(data.message || 'Failed to add item to cart');
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -149,9 +139,6 @@ const ProductDetail = () => {
       <Navbar />
       <ToastContainer />
 
-      {/* Login Dialog and Add to Cart Animation (previous implementation) */}
-      {/* ... (keep the existing dialog and animation components) */}
-
       <div className="min-h-screen bg-gradient-to-b from-pink-50 to-white py-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div 
@@ -161,24 +148,17 @@ const ProductDetail = () => {
             className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-pink-100"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-              {/* Product Image Section */}
               <div className="p-8 bg-gray-50 flex items-center justify-center">
-                <motion.div 
+                <motion.img 
                   whileHover={{ scale: 1.05 }}
                   transition={{ type: "spring", stiffness: 300 }}
-                  className="w-full max-w-md h-[500px] relative"
-                >
-                  <img
-                    src={product.img}
-                    alt={product.name}
-                    className="absolute inset-0 w-full h-full object-contain rounded-2xl shadow-lg"
-                  />
-                </motion.div>
+                  src={product.img}
+                  alt={product.name}
+                  className="w-full max-w-md h-[500px] object-contain rounded-2xl shadow-lg"
+                />
               </div>
 
-              {/* Product Info Section */}
               <div className="p-8 space-y-6">
-                {/* Header Section with Name and Price */}
                 <div className="border-b border-pink-100 pb-6">
                   <h1 className="text-4xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-pink-600 to-rose-500 text-transparent bg-clip-text">
                     {product.name}
@@ -196,7 +176,6 @@ const ProductDetail = () => {
                   </div>
                 </div>
 
-                {/* Stock Status Section */}
                 <div className="flex items-center space-x-4">
                   <div className={`px-4 py-2 rounded-full flex items-center ${stockStatus?.color}`}>
                     {stockStatus?.status === 'In Stock' && <FaBox className="mr-2 text-green-600" />}
@@ -215,7 +194,6 @@ const ProductDetail = () => {
                   </div>
                 </div>
 
-                {/* Description Section */}
                 <div className="border-t border-b border-pink-100 py-6">
                   <h2 className="text-xl font-semibold mb-4 text-pink-700">
                     Description
@@ -226,7 +204,6 @@ const ProductDetail = () => {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Quantity Selector */}
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700 font-medium">Quantity:</span>
                     <div className="flex items-center bg-gray-100 rounded-lg overflow-hidden">
@@ -253,25 +230,22 @@ const ProductDetail = () => {
                     </div>
                   </div>
 
-                  {/* Add to Cart Button */}
-                    <motion.button 
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={`w-full py-4 rounded-xl hover:shadow-xl transition duration-300 flex items-center justify-center space-x-3 ${
-                        stockStatus?.stock === 0 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-gradient-to-r from-pink-600 to-rose-500 text-white'
-                      }`}
-                      onClick={handleAddToCart}
-                      disabled={stockStatus?.stock === 0}
-                    >
-                      <FaShoppingCart />
-                      <Link to={'/cart'}>
-                      <span>
-                        {stockStatus?.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-                      </span>
-                      </Link>
-                    </motion.button>
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`w-full py-4 rounded-xl hover:shadow-xl transition duration-300 flex items-center justify-center space-x-3 ${
+                      stockStatus?.stock === 0 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-pink-600 to-rose-500 text-white'
+                    }`}
+                    onClick={handleAddToCart}
+                    disabled={stockStatus?.stock === 0}
+                  >
+                    <FaShoppingCart />
+                    <span>
+                      {stockStatus?.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                    </span>
+                  </motion.button>
                 </div>
               </div>
             </div>
